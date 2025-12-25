@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>塑觅|瑜伽普拉提</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; margin: 0; padding: 20px; background-color: #f7f7f7; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .container { max-width: 600px; width: 100%; padding: 30px; background-color: #fff; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+        h1 { text-align: center; color: #333; margin-bottom: 30px; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: bold; color: #555; }
+        input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; background-color: #fff; }
+        select { appearance: none; -webkit-appearance: none; background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23007AFF%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.6-3.6%205.4-7.9%205.4-12.9%200-5-1.9-9.2-5.5-12.7z%22%2F%3E%3C%2Fsvg%3E'); background-repeat: no-repeat; background-position: right 1rem center; background-size: .65em auto; }
+        button { width: 100%; padding: 15px; background-color: #6a8a82; color: white; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; transition: background-color 0.3s; }
+        button:hover { background-color: #56716a; }
+        button:disabled { background-color: #ccc; cursor: not-allowed; }
+        #message { text-align: center; margin-top: 20px; font-weight: bold; padding: 10px; border-radius: 5px; }
+        .loader { text-align: center; padding: 20px; font-weight: bold; color: #555; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>塑觅|瑜伽普拉提</h1>
+    <div id="loader" class="loader">正在加載課程列表...</div>
+    <form id="signupForm" style="display:none;">
+        <div class="form-group">
+            <label for="name">學員姓名:</label>
+            <input type="text" id="name" name="name" required>
+        </div>
+        <div class="form-group">
+            <label for="phone">聯繫電話:</label>
+            <input type="tel" id="phone" name="phone" required>
+        </div>
+        <div class="form-group">
+            <label for="course">選擇課程:</label>
+            <select id="course" name="course" required>
+                <option value="">請選擇一門課程</option>
+            </select>
+        </div>
+        <button type="submit">確認預約</button>
+    </form>
+    <p id="message"></p>
+</div>
+
+<script>
+    // --- 您需要修改的配置 ---
+    const API_TOKEN = 'uskLdr6KFa9rrOjon35FCtH';
+    const BOOKINGS_DATASHEET_ID = 'dstyeEUpe69TBXWlgQ'; // 用於寫入報名記錄
+    const COURSES_DATASHEET_ID = 'dstbYBvr8mPuS4iWte'; // 用於讀取課程信息
+    // -----------------------
+
+    const form = document.getElementById('signupForm');
+    const courseSelect = document.getElementById('course');
+    const messageEl = document.getElementById('message');
+    const loader = document.getElementById('loader');
+    const submitButton = form.querySelector('button');
+
+    // 存儲課程數據，避免重複請求
+    let coursesData = [];
+
+    // 封裝API請求
+    async function vikaApi(datasheetId, method = 'GET', data = null) {
+        const url = `https://api.vika.cn/fusion/v1/datasheets/${datasheetId}/records`;
+        const headers = {
+            'Authorization': `Bearer ${API_TOKEN}`,
+            'Content-Type': 'application/json'
+        };
+        const config = { method, headers };
+        if (data) {
+            config.body = JSON.stringify(data);
+        }
+        const response = await fetch(url, config);
+        const result = await response.json();
+        if (!result.success) {
+            throw new Error(result.message || 'API 操作失敗');
+        }
+        return result.data.records;
+    }
+
+    // 加載課程
+    async function loadCourses() {
+        try {
+            // 1. 獲取所有課程
+            const allCourses = await vikaApi(COURSES_DATASHEET_ID, 'GET');
+            coursesData = allCourses; // 存儲課程數據
+            
+            // 2. 獲取所有已報名記錄
+            const allBookings = await vikaApi(BOOKINGS_DATASHEET_ID, 'GET');
+
+            // 3. 計算每門課程的已報名人數
+            // 注意：由於使用了關聯字段，選擇課程字段現在是數組格式
+            const bookingCounts = allBookings.reduce((acc, booking) => {
+                const courseIds = booking.fields['選擇課程']; // 這現在是一個數組
+                if (courseIds && Array.isArray(courseIds)) {
+                    courseIds.forEach(courseId => {
+                        acc[courseId] = (acc[courseId] || 0) + 1;
+                    });
+                }
+                return acc;
+            }, {});
+
+            // 4. 清空並重新填充下拉列表
+            courseSelect.innerHTML = '<option value="">請選擇一門課程</option>';
+            
+            allCourses.forEach(course => {
+                const courseId = course.recordId;
+                const fields = course.fields;
+                const enrolled = bookingCounts[courseId] || 0;
+                const capacity = fields['人數上限'] || 0;
+                const isAvailable = fields['狀態'] === '開放報名' && enrolled < capacity;
+
+                if (isAvailable) {
+                    const remaining = capacity - enrolled;
+                    const optionText = `${fields['課程時間']} | ${fields['課程名稱']} | ${fields['授課老師']} | ${fields['場館地址']} (剩餘 ${remaining} 位)`;
+                    const option = new Option(optionText, courseId);
+                    courseSelect.add(option);
+                }
+            });
+
+            loader.style.display = 'none';
+            form.style.display = 'block';
+
+        } catch (error) {
+            loader.textContent = '課程加載失敗，請刷新頁面重試。錯誤：' + error.message;
+            console.error('加載課程出錯:', error);
+        }
+    }
+
+    // 提交表單
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        submitButton.disabled = true;
+        submitButton.textContent = '正在提交...';
+        messageEl.textContent = '';
+
+        const courseId = courseSelect.value;
+        const name = document.getElementById('name').value;
+        const phone = document.getElementById('phone').value;
+
+        try {
+            // 從已存儲的課程數據中找到對應課程
+            const selectedCourse = coursesData.find(course => course.recordId === courseId);
+            if (!selectedCourse) {
+                throw new Error('找不到選擇的課程信息');
+            }
+
+            // 重新獲取最新的報名數據，防止併發問題
+            const allBookings = await vikaApi(BOOKINGS_DATASHEET_ID, 'GET');
+            
+            // 計算當前課程的報名人數（處理關聯字段數組格式）
+            let enrolled = 0;
+            allBookings.forEach(booking => {
+                const courseIds = booking.fields['選擇課程'];
+                if (courseIds && Array.isArray(courseIds) && courseIds.includes(courseId)) {
+                    enrolled++;
+                }
+            });
+
+            const capacity = selectedCourse.fields['人數上限'];
+
+            if (enrolled >= capacity) {
+                throw new Error('手慢了，該課程剛剛已滿員！');
+            }
+
+            // 寫入報名記錄（關聯字段需要使用數組格式）
+            await vikaApi(BOOKINGS_DATASHEET_ID, 'POST', {
+                records: [{
+                    fields: {
+                        '學員姓名': name,
+                        '聯繫電話': phone,
+                        '選擇課程': [courseId] // 關聯字段必須是數組格式，即使只有一個值
+                    }
+                }]
+            });
+            
+            // 檢查是否因為本次報名而滿員
+            if (enrolled + 1 >= capacity) {
+                // 更新課程狀態為"已滿員"
+                await vikaApi(COURSES_DATASHEET_ID, 'PATCH', {
+                    records: [{
+                        recordId: courseId,
+                        fields: {
+                            '狀態': '已滿員'
+                        }
+                    }]
+                });
+            }
+
+            messageEl.textContent = '恭喜！預約成功！';
+            messageEl.style.color = 'green';
+            form.reset();
+            // 刷新課程列表，移除已滿員課程
+            loadCourses();
+
+        } catch (error) {
+            messageEl.textContent = '預約失敗：' + error.message;
+            messageEl.style.color = 'red';
+            console.error('提交報名出錯:', error);
+        } finally {
+            submitButton.disabled = false;
+            submitButton.textContent = '確認預約';
+        }
+    });
+
+    // 初始加載
+    loadCourses();
+
+</script>
+
+</body>
+</html>
+
