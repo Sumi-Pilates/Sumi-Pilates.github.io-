@@ -23,23 +23,23 @@
 
 <div class="container">
     <h1>塑觅|瑜伽普拉提</h1>
-    <div id="loader" class="loader">正在加載課程列表...</div>
+    <div id="loader" class="loader">正在加载课程列表...</div>
     <form id="signupForm" style="display:none;">
         <div class="form-group">
-            <label for="name">學員姓名:</label>
+            <label for="name">学员姓名:</label>
             <input type="text" id="name" name="name" required>
         </div>
         <div class="form-group">
-            <label for="phone">聯繫電話:</label>
+            <label for="phone">联系电话:</label>
             <input type="tel" id="phone" name="phone" required>
         </div>
         <div class="form-group">
-            <label for="course">選擇課程:</label>
+            <label for="course">选择课程:</label>
             <select id="course" name="course" required>
-                <option value="">請選擇一門課程</option>
+                <option value="">请选择一门课程</option>
             </select>
         </div>
-        <button type="submit">確認預約</button>
+        <button type="submit">确认预约</button>
     </form>
     <p id="message"></p>
 </div>
@@ -102,7 +102,7 @@
             }, {});
 
             // 4. 清空並重新填充下拉列表
-            courseSelect.innerHTML = '<option value="">請選擇一門課程</option>';
+            courseSelect.innerHTML = '<option value="">请选择一门课程</option>';
             
             allCourses.forEach(course => {
                 const courseId = course.recordId;
@@ -123,8 +123,8 @@
             form.style.display = 'block';
 
         } catch (error) {
-            loader.textContent = '課程加載失敗，請刷新頁面重試。錯誤：' + error.message;
-            console.error('加載課程出錯:', error);
+            loader.textContent = '课程加载失败，请刷新页面充实。错误：' + error.message;
+            console.error('加载课程出错:', error);
         }
     }
 
@@ -188,19 +188,19 @@
                 });
             }
 
-            messageEl.textContent = '恭喜！預約成功！';
+            messageEl.textContent = '恭喜！预约成功！';
             messageEl.style.color = 'green';
             form.reset();
             // 刷新課程列表，移除已滿員課程
             loadCourses();
 
         } catch (error) {
-            messageEl.textContent = '預約失敗：' + error.message;
+            messageEl.textContent = '预约失敗：' + error.message;
             messageEl.style.color = 'red';
-            console.error('提交報名出錯:', error);
+            console.error('提交报名出错:', error);
         } finally {
             submitButton.disabled = false;
-            submitButton.textContent = '確認預約';
+            submitButton.textContent = '确认预约';
         }
     });
 
